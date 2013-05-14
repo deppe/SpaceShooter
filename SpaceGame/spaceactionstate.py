@@ -50,8 +50,12 @@ class SpaceActionState:
                 self.endState()
             
     def update(self):
-        self.dispatcher.dispatch()
-        self.dispatcher.checkCollisions()
+        
+        if self.dispatcher.isExhausted():
+            self.dispatcher.advanceLevel()
+        else:
+            self.dispatcher.dispatch()
+            self.dispatcher.checkCollisions()
         
         self.allsprites.update()
         self.allsprites.clear(self.screen, self.background)
@@ -113,8 +117,13 @@ class Dispatcher:
             self.dispatchMotherShip()
             self.dispatchers = []
             
-            
         if self.level == 1:
+            self.enemyCount = 50
+            self.dispatchMotherShip()
+            self.dispatchers = [DispatchCountdown(1,  self.dispatchPowerup,  1), 
+                                      DispatchCountdown (5,  self.dispatchEnemy)]
+            
+        if self.level == 2:
             self.enemyCount = 100
             self.dispatchers = [ DispatchCountdown((10, 30),  self.dispatchEnemy), 
                                     DispatchCountdown((100,  300),  self.dispatchPowerup), 
@@ -259,22 +268,41 @@ class Dispatcher:
             
             enemy.kill()
             enemy.alive = False
+            
+    def isExhausted(self):
+        return self.enemyCount == 0 and len(self.enemies) == 0
+        
+    def advanceLevel(self):
+        self.level += 1
+        self.createDispatchers()
 
 class DispatchCountdown:
-    def __init__(self,  range,  callback):
+    def __init__(self,  range, callback, count = None):
         self.range = range
         self.callback = callback
+        self.count = count
+        self.random = random
         
         self.countdown = self.getCountdown()
         
     def getCountdown(self):
-        return random.randint(*self.range)
+        if isinstance(self.range,  tuple):
+            return random.randint(*self.range)
+        elif isinstance(self.range,  int):
+            return self.range
         
     def dispatch(self):
+        if self.count is not None and self.count == 0:
+            return
+        
         self.countdown -= 1
+        
         if (self.countdown == 0):
             self.callback()
             self.countdown = self.getCountdown()
+            
+            if self.count is not None:
+                self.count -= 1
             
 class DispatchKillCount:
     def __init__(self,  killCounter,  count,  callback):
